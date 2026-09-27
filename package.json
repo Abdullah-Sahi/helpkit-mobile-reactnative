@@ -4,6 +4,14 @@
   "description": "Your HelpKit help center in a native sheet inside your React Native app, on iOS and Android.",
   "private": true,
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abdullah-Sahi/helpkit-mobile-reactnative.git"
+  },
+  "homepage": "https://github.com/Abdullah-Sahi/helpkit-mobile-reactnative#readme",
+  "bugs": {
+    "url": "https://github.com/Abdullah-Sahi/helpkit-mobile-reactnative/issues"
+  },
   "type": "commonjs",
   "main": "./lib/module/index.js",
   "module": "./lib/module/index.js",
