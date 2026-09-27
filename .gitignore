@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output (bob build) and packs
+lib/
+*.tgz
+
+# The example app's local settings and Expo output
+example/.env.local
+example/.expo/
+example/dist/
+example/ios/
+example/android/
+
+# Tooling
+coverage/
+.DS_Store
+*.log

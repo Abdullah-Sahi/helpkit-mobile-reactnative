@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig",
+  "compilerOptions": {
+    // Expo would otherwise write a tsconfig of its own here.
+  }
+}

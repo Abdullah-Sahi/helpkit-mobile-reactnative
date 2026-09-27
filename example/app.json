@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "HelpKit SDK example",
+    "slug": "helpkit-react-native-example",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.helpkit.example"
+    },
+    "android": {
+      "package": "app.helpkit.example"
+    },
+    "experiments": {
+      "tsconfigPaths": false
+    }
+  }
+}
