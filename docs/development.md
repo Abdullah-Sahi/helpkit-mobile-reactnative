@@ -41,7 +41,8 @@ docs/             this file, and protocol.md
 
 ## Setup
 
-Node **22.13 or later** (React Native Testing Library 14 needs it), then, at the repository root:
+Node **22.13 or later** (React Native Testing Library 14 needs it); `.nvmrc` names 24, which is what
+CI uses and what `nvm use` picks. Then, at the repository root:
 
 ```sh
 npm install
@@ -82,6 +83,40 @@ node scripts/check-bundle.mjs example/dist/android-built example/dist/ios-built
 `check-bundle` then reports built files rather than source files. (`example/app.json` switches off
 Expo's tsconfig `paths` in Metro: the root tsconfig's alias is for TypeScript only, and would
 otherwise always pick the source.) Bundling iOS JavaScript needs no Mac.
+
+## CI
+
+`.github/workflows/ci.yml` runs the checks above on every push to every branch and on every pull
+request. It needs no secret, no variable and no setting on GitHub, and it publishes nothing.
+
+| Job | Runs | What it proves |
+| --- | --- | --- |
+| `check` | `npm ci`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:pack` | `package.json` and the lock file agree; the library, its tests and the example typecheck; the lint rules hold; every Jest test passes; and the package builds, packs the files it should, and resolves for an app that imports it |
+| `bundle` | `npm ci`, the example's `export:android` and `export:ios`, `npm run check:bundle` | Metro can bundle an app that uses the SDK for both platforms, and each bundle has the SDK and one copy each of react, react-native and the two native libraries |
+
+To run what CI runs, run those commands, in that order, at the repository root. `npm ci` installs
+exactly the lock file, deleting `node_modules` first; `npm install` is fine for everyday work.
+
+- **From the source, not the build.** The `bundle` job bundles the example as it is developed,
+  from the SDK's TypeScript. The built-package bundle (above) is not in CI; `check:pack` is what
+  covers the built files there.
+- **Permissions and secrets.** `contents: read` and nothing else, and the checkout doesn't leave
+  its token behind. There is no npm token anywhere: publishing is the owner's, by hand
+  ([Releasing](#releasing-the-owners-decision)).
+- **Concurrency and timeouts.** A newer push to the same branch or pull request cancels the run
+  before it; each job stops after 15 minutes.
+- **Node and caches.** `actions/setup-node` reads `.nvmrc` (24) and keeps npm's download cache,
+  keyed on `package-lock.json`.
+- **Actions.** `actions/checkout@v7` and `actions/setup-node@v7`, each one's newest major on
+  2026-09-30, read from its releases and tags.
+
+**It has not run on GitHub yet.** Every command in both jobs was run on Windows, the same way, from
+a clean copy of the repository with no `node_modules`, no `lib` and no `example/.env.local`, and
+passed: 154 Jest tests in 9 suites, and both bundles. What only a run on GitHub can show: that the
+workflow starts at all, and the same commands on Linux — Metro and the Hermes compiler in
+particular, which `expo export` runs and which are different programs there. Every relative import
+was checked to be spelled exactly as its file is on disk, which is the usual way a Linux run
+differs. Nothing in CI is a phone: the README's device checklist is still to be done by hand.
 
 ## The DevTools check
 

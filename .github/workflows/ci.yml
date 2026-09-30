@@ -1,0 +1,92 @@
+name: Build and test
+
+# Every push to every branch, and every pull request. Two jobs, side by side:
+#
+#   check   TypeScript, ESLint, the Jest suite with its mocked WebView, and the package as npm
+#           would publish it: built, packed, and read by publint and "are the types wrong".
+#   bundle  Metro bundles the example app for Android and for iOS, and each bundle holds the SDK
+#           and one copy each of react, react-native and the two native libraries.
+#
+# No simulator, no phone and nothing secret: docs/development.md, "The checks", says what each
+# proves and how to run it on your own machine. What only a phone can show is the README's device
+# checklist, which no workflow runs.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# Reading the code is all either job does with the repository: nothing here writes to it, comments,
+# releases or publishes. Publishing is the owner's, by hand (docs/development.md, "Releasing").
+permissions:
+  contents: read
+
+# A newer push to the same branch, or to the same pull request, makes the run before it pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Nothing after this talks to GitHub, so the token isn't left in .git/config.
+          persist-credentials: false
+
+      # Node at the version .nvmrc names, and npm's download cache kept between runs, keyed on
+      # package-lock.json.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Exactly the lock file, the example app's workspace included.
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # bob build, then the packed file list, publint, and attw --profile esm-only.
+      - name: The package, as it would be published
+        run: npm run check:pack
+
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      EXPO_NO_TELEMETRY: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The example runs the SDK's TypeScript source, so nothing has to be built first.
+      - name: Bundle the example for Android
+        run: npm run -w helpkit-react-native-example export:android
+
+      # Bundling iOS JavaScript needs no Mac.
+      - name: Bundle the example for iOS
+        run: npm run -w helpkit-react-native-example export:ios
+
+      - name: One copy of everything in each bundle
+        run: npm run check:bundle
