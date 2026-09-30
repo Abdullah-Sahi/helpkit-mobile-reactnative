@@ -1,5 +1,7 @@
 # helpkit-react-native
 
+[![Build and test](https://github.com/Abdullah-Sahi/helpkit-mobile-reactnative/actions/workflows/ci.yml/badge.svg)](https://github.com/Abdullah-Sahi/helpkit-mobile-reactnative/actions/workflows/ci.yml)
+
 Your HelpKit help center inside your React Native app, on iOS and Android: search, articles,
 feedback and your contact form, in a native sheet with its own header, opened from any button in
 your app.
@@ -39,6 +41,7 @@ HelpKitSDK.openArticle('reset-your-password');
 - [Device checklist](#device-checklist)
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
+- [CI](#ci)
 - [Licence and name](#licence-and-name)
 
 ## Install
@@ -410,6 +413,24 @@ Set `debug: true` to see what the SDK does, step by step.
 
 [docs/development.md](docs/development.md): building, testing, the example app, the checks that run
 on Windows, and trying it on a phone. [CHANGELOG.md](CHANGELOG.md) lists what changed.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push to every branch and on every pull request, with no
+secrets and nothing to set up on GitHub. Two jobs, on the Node version `.nvmrc` names (24):
+
+- **`check`**: `npm ci`, then `npm run typecheck`, `npm run lint`, `npm test`, and
+  `npm run check:pack` — the package built and packed as npm would publish it, and read by publint
+  and "are the types wrong".
+- **`bundle`**: Metro bundles the example app for Android and for iOS, and `npm run check:bundle`
+  reads both: the SDK is in each, with one copy each of react, react-native and the two native
+  libraries.
+
+Those are the same commands as [the checks](docs/development.md#the-checks) a developer runs, with
+no simulator and no phone. What only a phone can show — the [device checklist](#device-checklist) —
+no workflow runs. It publishes nothing: that stays the owner's, by hand. The workflow was checked
+command by command on a developer's machine and has not run on GitHub yet
+([what that leaves unproved](docs/development.md#ci)).
 
 ## Licence and name
 
