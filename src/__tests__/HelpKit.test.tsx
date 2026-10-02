@@ -26,6 +26,15 @@ const YES = {
   background: { light: '#FFFFFF', dark: '#0C0A09' },
 };
 
+/** What the resolver lists for a site in English and German, with Traditional Chinese and two versions. */
+const EDITIONS = [
+  { path: '', kind: 'main', language: 'en', label: 'English' },
+  { path: 'de', kind: 'language', language: 'de', label: 'Deutsch' },
+  { path: 'zh-hant', kind: 'language', language: 'zh-Hant', label: '繁體中文' },
+  { path: 'v1', kind: 'version', language: 'en', label: 'v1' },
+  { path: 'v2', kind: 'version', language: 'en', label: 'v2' },
+];
+
 type Reply = { status: number; body: unknown };
 
 let replies: Reply[];
@@ -711,12 +720,110 @@ describe('privacy', () => {
     }
   });
 
-  test('nothing but the view goes in the address', async () => {
-    await mount();
+  test('nothing but the view, and the edition, goes in the address', async () => {
+    replies.push({ status: 200, body: { ...YES, editions: EDITIONS } });
+    await mount({ language: 'de' });
     HelpKitSDK.setContactFields({ name: 'Ada', email: 'ada@example.com', subject: 'Hi', metadata: 'v=1' });
-    HelpKitSDK.setVersion('de');
-    const webView = await openWith(() => HelpKitSDK.openContact({ version: 'fr' }));
-    expect(webView.props.source.uri).toBe(`${SITE}/_mobile/contact`);
+    const webView = await openWith(() => HelpKitSDK.openContact());
+    expect(webView.props.source.uri).toBe(`${SITE}/_mobile/de/contact`);
+  });
+});
+
+describe('languages and versions', () => {
+  function offering(editions: unknown = EDITIONS) {
+    replies.push({ status: 200, body: { ...YES, editions } });
+  }
+
+  test('with neither set, the main edition, as before', async () => {
+    offering();
+    await mount();
+    const webView = await openWith(() => HelpKitSDK.openArticle('install'));
+    expect(webView.props.source.uri).toBe(`${SITE}/_mobile/articles/install`);
+  });
+
+  test('config.language opens the edition in the app’s language, by its language when not its exact tag', async () => {
+    offering();
+    await mount({ language: 'de-AT' });
+    const webView = await openWith(() => HelpKitSDK.openSearch('rückgabe'));
+    expect(webView.props.source.uri).toBe(`${SITE}/_mobile/de?q=r%C3%BCckgabe`);
+  });
+
+  test('setLanguage wins over config.language, and a language the site isn’t written in opens the main one', async () => {
+    offering();
+    offering();
+    await mount({ language: 'de' });
+    HelpKitSDK.setLanguage('fr-CA');
+    await openWith(() => HelpKitSDK.open());
+    expect(lastWebView().props.source.uri).toBe(`${SITE}/_mobile`);
+    await act(async () => HelpKitSDK.close());
+    HelpKitSDK.setLanguage(null);
+    await openWith(() => HelpKitSDK.open());
+    expect(lastWebView().props.source.uri).toBe(`${SITE}/_mobile/de`);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  test('a version comes first: the opening’s own, then setVersion’s, then config’s', async () => {
+    offering();
+    offering();
+    offering();
+    await mount({ version: 'v1', language: 'de' });
+    await openWith(() => HelpKitSDK.openArticle('install'));
+    expect(lastWebView().props.source.uri).toBe(`${SITE}/_mobile/v1/articles/install`);
+    await act(async () => HelpKitSDK.close());
+    HelpKitSDK.setVersion('V2');
+    await openWith(() => HelpKitSDK.openArticle('install'));
+    expect(lastWebView().props.source.uri).toBe(`${SITE}/_mobile/v2/articles/install`);
+    await act(async () => HelpKitSDK.close());
+    await openWith(() => HelpKitSDK.openArticle('install', { version: 'v1' }));
+    expect(lastWebView().props.source.uri).toBe(`${SITE}/_mobile/v1/articles/install`);
+  });
+
+  test('a version the site doesn’t offer: the language, else the main edition, with one warning in development', async () => {
+    offering();
+    offering();
+    await mount({ version: 'v9', language: 'de' });
+    await openWith(() => HelpKitSDK.openContact());
+    expect(lastWebView().props.source.uri).toBe(`${SITE}/_mobile/de/contact`);
+    await act(async () => HelpKitSDK.close());
+    await openWith(() => HelpKitSDK.openContact());
+    const said = warn.mock.calls.map(([line]) => String(line)).filter((line) => line.includes('"v9"'));
+    expect(said).toHaveLength(1);
+    expect(said[0]).toContain('its versions: v1, v2');
+  });
+
+  test('an answer without editions (a HelpKit from before them) opens the main edition, whatever is set', async () => {
+    await mount({ version: 'v2', language: 'de' });
+    const webView = await openWith(() => HelpKitSDK.openArticle('install'));
+    expect(webView.props.source.uri).toBe(`${SITE}/_mobile/articles/install`);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('it has no versions'));
+  });
+
+  test('a path the SDK can’t put in an address is never opened', async () => {
+    offering([
+      { path: '', kind: 'main', language: 'en', label: 'English' },
+      { path: '../admin', kind: 'language', language: 'de', label: 'Deutsch' },
+    ]);
+    await mount({ language: 'de' });
+    const webView = await openWith(() => HelpKitSDK.open());
+    expect(webView.props.source.uri).toBe(`${SITE}/_mobile`);
+  });
+
+  test('a new open* while open follows the settings at that moment; Try again keeps the page reached', async () => {
+    offering();
+    offering();
+    await mount();
+    const first = await openWith(() => HelpKitSDK.open());
+    expect(first.props.source.uri).toBe(`${SITE}/_mobile`);
+    await ready(first);
+    HelpKitSDK.setLanguage('zh-TW');
+    await openWith(() => HelpKitSDK.openArticle('install'));
+    expect(lastWebView().props.source.uri).toBe(`${SITE}/_mobile/zh-hant/articles/install`);
+    // The reader moved on in the page; a failed load, then Try again, comes back there.
+    await act(async () => lastWebView().props.onNavigationStateChange({ url: `${SITE}/_mobile/zh-hant/collections/start` }));
+    await act(async () => lastWebView().props.onError({ nativeEvent: { code: -1009 }, preventDefault: () => undefined }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    await act(async () => undefined);
+    expect(lastWebView().props.source.uri).toBe(`${SITE}/_mobile/zh-hant/collections/start`);
   });
 });
 

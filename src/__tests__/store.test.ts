@@ -131,12 +131,42 @@ describe('the calls', () => {
     expect(HelpKitSDK.isOpen()).toBe(false);
   });
 
-  test('setVersion is kept and does nothing else', () => {
-    HelpKitSDK.setVersion(' de ');
-    expect(store.version).toBe('de');
+  test('setVersion is kept, trimmed and lowercase, for the next opening; it opens nothing', () => {
+    HelpKitSDK.setVersion(' V2 ');
+    expect(store.version).toBe('v2');
     HelpKitSDK.setVersion('');
     expect(store.version).toBeNull();
+    HelpKitSDK.setVersion('v2');
+    HelpKitSDK.setVersion(null);
+    expect(store.version).toBeNull();
+    HelpKitSDK.setVersion(7 as never);
+    expect(store.version).toBeNull();
     expect(host.opened).toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  test('setLanguage keeps a language tag for the next opening; it opens nothing', () => {
+    for (const tag of ['de', 'pt-BR', 'zh-Hant-TW', 'de_AT', ' fr ']) {
+      HelpKitSDK.setLanguage(tag);
+      expect(store.language).toBe(tag.trim());
+    }
+    HelpKitSDK.setLanguage('');
+    expect(store.language).toBeNull();
+    HelpKitSDK.setLanguage('de');
+    HelpKitSDK.setLanguage(null);
+    expect(store.language).toBeNull();
+    expect(host.opened).toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  test('setLanguage with something that isn’t a tag clears it, with a warning', () => {
+    for (const bad of ['German', 'de/../x', 'd', 'x'.repeat(40), 42, {}]) {
+      HelpKitSDK.setLanguage('de');
+      HelpKitSDK.setLanguage(bad as never);
+      expect(store.language).toBeNull();
+    }
+    expect(warn).toHaveBeenCalledTimes(6);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('setLanguage takes a language tag'));
   });
 
   test('setContactFields tells the sheet; signOut forgets the fields and holds a sign-out', () => {

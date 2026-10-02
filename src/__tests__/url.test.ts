@@ -27,6 +27,27 @@ describe('view paths', () => {
     expect(viewPath({ view: 'category' })).toBe('/_mobile');
     expect(viewPath({ view: 'search' })).toBe('/_mobile');
   });
+
+  test('in another edition, its path comes first', () => {
+    expect(viewPath({ view: 'home' }, 'de')).toBe('/_mobile/de');
+    expect(viewPath({ view: 'search', q: 'rückgabe' }, 'de')).toBe('/_mobile/de?q=r%C3%BCckgabe');
+    expect(viewPath({ view: 'article', slug: 'install' }, 'v2')).toBe('/_mobile/v2/articles/install');
+    expect(viewPath({ view: 'category', slug: 'billing' }, 'zh-hans')).toBe('/_mobile/zh-hans/collections/billing');
+    expect(viewPath({ view: 'contact' }, 'v2.1')).toBe('/_mobile/v2.1/contact');
+    expect(viewPath({ view: 'article' }, 'de')).toBe('/_mobile/de');
+  });
+
+  test('the main edition, or anything that isn’t one segment, adds nothing', () => {
+    expect(viewPath({ view: 'contact' }, '')).toBe('/_mobile/contact');
+    for (const bad of ['..', 'de/x', 'DE', '-de', 'de-', 'a b', '%2e', 'x'.repeat(21), '/de']) {
+      expect(viewPath({ view: 'article', slug: 'install' }, bad)).toBe('/_mobile/articles/install');
+    }
+  });
+
+  test('an edition’s address is still one of the help center’s app pages', () => {
+    expect(isMobileUrl(`${SITE}${viewPath({ view: 'article', slug: 'install' }, 'v2')}`, SITE)).toBe(true);
+    expect(isMobileUrl(`${SITE}${viewPath({ view: 'home' }, 'de')}`, SITE)).toBe(true);
+  });
 });
 
 describe('slugs and queries', () => {

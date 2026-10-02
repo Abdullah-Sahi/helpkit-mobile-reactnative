@@ -28,6 +28,7 @@ src/
   bridge.ts       protocol 1: the page's messages, and the injected script
   links.ts        where each navigation goes: stay, outside, or nowhere
   url.ts          origins (compared by prefix), the http rule, view paths, slugs
+  editions.ts     which language or version an opening shows, from the resolver's editions
   theme.ts        the sheet's colours
   keyboard.ts     room for the keyboard on Android
   strings.ts      the sheet's own words
