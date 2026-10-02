@@ -7,6 +7,16 @@ real phones.
 
 ## [Unreleased]
 
+### Added
+
+- Languages and versions (HelpKit's item 26): `config.language` and `HelpKitSDK.setLanguage()` open
+  the help center in the app's language when it is written in it; `config.version`,
+  `HelpKitSDK.setVersion()` and an opening's `{ version }`, accepted since 0.1, now open that
+  version. Each opening goes to `/_mobile/<path>/…`, choosing only among the editions the resolver
+  lists (its new `editions`, within answer version 1). A version the help center doesn't offer opens
+  it as if none were set, with a development warning; an answer without `editions` opens the main
+  edition, as before. README: "Languages and versions".
+
 ## [0.1.0] - not yet released
 
 The first version: private, and not published.

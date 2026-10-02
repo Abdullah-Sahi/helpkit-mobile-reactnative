@@ -29,6 +29,7 @@ HelpKitSDK.openArticle('reset-your-password');
 - [Opening help](#opening-help)
 - [Contact fields and metadata](#contact-fields-and-metadata)
 - [Signing out](#signing-out)
+- [Languages and versions](#languages-and-versions)
 - [Links](#links)
 - [How it looks](#how-it-looks)
 - [How the sheet is presented](#how-the-sheet-is-presented)
@@ -97,7 +98,8 @@ With Expo Router, the same in `app/_layout.tsx`, after `<Stack />` (or `<Slot />
 | `strings` | Your words for the sheet's own few: `help`, `back`, `close`, `loading`, `errorTitle`, `errorBody`, `retry`, `unavailableTitle`, `unavailableBody`. |
 | `onOpenLink` | Receives every link that leaves the help center, instead of the SDK opening it ([Links](#links)). |
 | `debug` | Diagnostics in the console. Never your contact fields, and never WebView debugging ([Security notes](#security-notes)). |
-| `version` | Accepted, for helpkit.so parity. Help centers have no versions yet, so it does nothing. |
+| `language` | Your app's language, as a tag (`de`, `pt-BR`, `zh-Hant`): help opens in it when your help center is written in it ([Languages and versions](#languages-and-versions)). |
+| `version` | The version of your help center to open, by its label (`v2`), when your app is built for one ([Languages and versions](#languages-and-versions)). |
 
 `config` is read each time the sheet opens, so a changed value is used from the next opening.
 
@@ -119,8 +121,8 @@ HelpKitSDK.isOpen();                        // true while the sheet is open
   doesn't exist shows the help center's own "not found", with a way home. Renaming an article's slug
   breaks an app that opens it by the old one, so keep slugs you use in your app stable.
 - **`openSearch`** puts the words in the box and searches nothing until the reader asks.
-- **Per-call options**, as helpkit.so takes them: `{ headerTitle }` for that opening, and `version`
-  (accepted, does nothing yet).
+- **Per-call options**, as helpkit.so takes them: `{ headerTitle }` and `{ version }` for that
+  opening only.
 - **Calling while open** shows the new view in the same sheet.
 - **Calling before `<HelpKit>` has mounted** is kept, not dropped: the last call opens once it
   mounts, if that is within 5 seconds (later than that it is forgotten, so an app that mounts
@@ -178,6 +180,62 @@ version may do it at once).
 
 The contact form keeps an unsent draft on the phone for a day, and only its subject and message —
 never the reader's name or email address.
+
+## Languages and versions
+
+On a plan with more than one language, your help center can be written in other languages, and in
+versions of your product (`v1`, `beta`), each launched on the dashboard's **Languages & versions**
+page. Tell the SDK your app's language, and the version it is built for, and each opening goes to the
+right one:
+
+```tsx
+import { getLocales } from 'expo-localization';
+
+// Once, at the root: the language your app is showing (here the phone's first, for an app that
+// follows the phone), and, when your help center has versions, the one this build of your app is for.
+<HelpKit
+  projectId="YOUR_APP_ID"
+  config={{ host: 'https://YOUR_HELPKIT_ADDRESS', language: getLocales()[0]?.languageTag, version: 'v2' }}
+/>
+
+// When the reader changes your app's language:
+HelpKitSDK.setLanguage('de-AT');
+// When the version your app needs help for changes:
+HelpKitSDK.setVersion('v1');
+
+// For one opening only:
+HelpKitSDK.openArticle('install', { version: 'v1' });
+```
+
+Which one opens, first match wins:
+
+1. **A version**: the opening's own `{ version }`, else `setVersion()`'s, else `config.version`. It
+   is your version's label, as the Languages page shows it, in any case.
+2. **A language**: `setLanguage()`'s, else `config.language`. Its exact tag first, then the same
+   language wherever it is spoken (`de-AT` opens German), with Chinese kept apart by script
+   (`zh-TW` and `zh-HK` open Traditional, `zh-CN` Simplified). Android's `de_AT` works too.
+3. **Your help center's main language**, as when neither is set.
+
+- **A version is never chosen by language**, and a language never by a version: a German version
+  (labelled, say, `v2-de`) opens only when it is the version you ask for.
+- **Only what readers are offered**: a language or version opens once it is launched and your plan
+  serves it. Until then, help opens as if it weren't set.
+- **A version your help center doesn't have** — not made yet, deleted, or not yet launched — opens
+  as if no version were set (the language, then the main one), never a "not found". A development
+  build warns once, naming the versions there are. So an app shipped today can ask for a version you
+  make later.
+- **Slugs are your main language's**, the ones on your help center's site: `openArticle('install')`
+  is the same call in every language. Each language's pages have slugs of their own, made from their
+  translated titles, so in German `install` opens the German translation of `install`, whatever its
+  slug there, or the main language's `install` when it hasn't been translated. `openCategory` works
+  the same way. A version's pages keep their slugs, so the same slug opens that version's page.
+- **The language is your app's, never guessed from the phone**: your app knows which language it is
+  showing. `null` or `''` clears either setting. Both are read at each opening; changing them while
+  the sheet is open changes the next opening.
+- **Inside the sheet**, the front page lists your help center's languages (never its versions), and a
+  reader may switch there. The next opening follows your app's settings again.
+- The sheet's own few words stay yours (`strings`), in whatever language your app gives them; the
+  pages bring theirs in the edition's language.
 
 ## Links
 
@@ -265,7 +323,7 @@ code and chat don't run inside your app.
 
 | Data | When | Kept |
 | --- | --- | --- |
-| The App ID and, as with any request, the phone's IP address; the help pages' requests also carry `HelpKitRN/<version>` in their user agent | each opening | not stored beyond server logs |
+| The App ID and, as with any request, the phone's IP address; the help pages' requests also carry `HelpKitRN/<version>` in their user agent, and their address the language or version opened (`/_mobile/de`) | each opening | not stored beyond server logs |
 | Name, email address, subject, message, and your metadata | only when the reader sends a message | with the message, a year |
 | Email address | only when a reader of a protected help center signs in by email | for the sign-in |
 | Search words, which articles are read (counted per day, as "From the mobile app"), and feedback on articles | as the reader uses the help center | as anonymous counts; nothing identifies the reader |
@@ -391,6 +449,12 @@ beside each one.
 23. An iPhone over Wi-Fi with a `*.nip.io` address over http (App Transport Security may refuse it;
     the fallback is an https tunnel).
 
+**Languages and versions**
+
+24. On a site with a German edition launched: `config.language: 'de-AT'` opens German, the front
+    page's languages list switches language inside the sheet and Close still works after it, and a
+    right-to-left edition (Arabic or Hebrew) reads right to left under the native header.
+
 ## Troubleshooting
 
 In a development build the console says why help isn't showing:
@@ -406,6 +470,11 @@ In a development build the console says why help isn't showing:
 - **Nothing happens on Android**: `<HelpKit>` must come last in your root, not inside a padded view.
 - **Nothing happens when help is opened from a Modal**: close your Modal first; help can't open over
   it on either platform ([why](#how-the-sheet-is-presented)).
+- **"This help center offers no version …"**: the version you set isn't one readers are offered. Check
+  its label on the dashboard's Languages & versions page, and that it is launched; until then help
+  opens as if no version were set.
+- **Help opens in the main language**: `language` (or `setLanguage`) must be a tag like `de` or
+  `pt-BR`, of a language your help center has launched; `debug: true` says which edition opens.
 
 Set `debug: true` to see what the SDK does, step by step.
 

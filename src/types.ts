@@ -35,8 +35,18 @@ export interface HelpKitConfig {
   host: string;
   /** The sheet's title: a string, or a function for your own translations. Defaults to the help center's name. */
   headerTitle?: string | (() => string);
-  /** Accepted and kept, for helpkit.so parity. Versions don't exist yet, so nothing is sent. */
+  /**
+   * The version of your help center to open, by its label (`v2`), when your app is built for one.
+   * `HelpKitSDK.setVersion()` and an opening's own `{ version }` win over it. One the help center
+   * doesn't offer opens it as if none were set, with a warning in development.
+   */
   version?: string;
+  /**
+   * Your app's language, as a tag (`de`, `pt-BR`, `zh-Hant`): the help center opens in it when it
+   * is written in it, and otherwise in its main language. `HelpKitSDK.setLanguage()` wins over it, and
+   * a version, when one is set, comes first. Never guessed from the phone: your app knows its language.
+   */
+  language?: string;
   /**
    * Diagnostics in the console. Never the contact fields, and never WebView debugging: that is on
    * in development builds only, whatever this says.
@@ -61,7 +71,7 @@ export interface HelpKitProps {
 export interface HelpKitOpenOptions {
   /** The title for this opening only. */
   headerTitle?: string | (() => string);
-  /** Accepted, for helpkit.so parity. Versions don't exist yet, so nothing is sent. */
+  /** The version for this opening only: it wins over `setVersion()` and `config.version`. */
   version?: string;
 }
 

@@ -1,3 +1,4 @@
+import { readEditions, type Edition } from './editions';
 import { NEUTRAL, colorPair, isHexColor, type Colors, type SiteTheme, type ThemePair } from './theme';
 import { APP_ID, allowedOrigin } from './url';
 
@@ -6,7 +7,7 @@ import { APP_ID, allowedOrigin } from './url';
  * name, where are its app pages, and how should the sheet around them look?
  *
  *     GET {host}/api/mobile-apps/{projectId}      no cookies, JSON, 10-second limit
- *     200 { v: 1, show: true, siteUrl, name, lang, dir, theme, style, header, background }
+ *     200 { v: 1, show: true, siteUrl, name, lang, dir, theme, style, header, background, editions }
  *     200 { v: 1, show: false, reason: "unknown" | "off" }
  *     503 { v: 1, show: false, reason: "unavailable" }
  *
@@ -30,6 +31,11 @@ export interface Site {
   style: 'branded' | 'minimal';
   header: ThemePair<Colors>;
   background: ThemePair<string>;
+  /**
+   * What the app may open the site in (editions.ts): the main edition first, then each language and
+   * version the owner has launched and the plan serves. Empty from a HelpKit from before editions.
+   */
+  editions: Edition[];
 }
 
 export type Resolution =
@@ -148,6 +154,7 @@ export function readAnswer(status: number, body: unknown, dev: boolean): Resolut
         light: isHexColor(background.light) ? background.light.toUpperCase() : NEUTRAL.light.bg,
         dark: isHexColor(background.dark) ? background.dark.toUpperCase() : NEUTRAL.dark.bg,
       },
+      editions: readEditions(answer.editions),
     },
   };
 }

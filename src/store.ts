@@ -15,6 +15,8 @@ import type { HelpKitOpenOptions, HelpKitView } from './types';
  * - **Contact fields** are held here, checked, and offered to the page after each `ready`.
  * - **A sign-out** asked for while the sheet is closed is held, and sent after the next `ready`,
  *   before any contact fields.
+ * - **The version and the language** set by `setVersion` and `setLanguage` are held here, and read
+ *   at each opening to choose the edition (editions.ts).
  */
 
 export interface OpenRequest {
@@ -102,8 +104,10 @@ class Store {
   private held = false;
   /** The contact fields the app offers, or null. In memory only. */
   fields: Prefill | null = null;
-  /** `setVersion`'s value: kept, and sent nowhere until versions exist. */
+  /** `setVersion`'s value, trimmed and lowercase, or null: it wins over `config.version`. */
   version: string | null = null;
+  /** `setLanguage`'s tag, or null: it wins over `config.language`. */
+  language: string | null = null;
 
   private active(): Host | null {
     return this.hosts[this.hosts.length - 1] ?? null;
@@ -175,6 +179,7 @@ class Store {
     this.held = false;
     this.fields = null;
     this.version = null;
+    this.language = null;
   }
 }
 

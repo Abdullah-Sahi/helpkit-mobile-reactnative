@@ -1,3 +1,4 @@
+import { cleanLanguage, cleanVersion } from './editions';
 import { devWarn } from './log';
 import { cleanContactFields, store, type OpenRequest } from './store';
 import type { ContactFields, HelpKitOpenOptions } from './types';
@@ -75,12 +76,28 @@ export const HelpKitSDK = Object.freeze({
   },
 
   /**
-   * Accepted and kept, for helpkit.so parity; `''` clears it. Help center versions don't exist yet,
-   * so nothing is sent — an app shipped today can't land on a version that later means something else.
+   * The version of your help center to open from now on, by its label (`v2`), as the dashboard's
+   * Languages page shows it; null or `''` clears it. It wins over `config.version`, and an opening's
+   * own `{ version }` wins over it. A version the help center doesn't offer opens it as if none were
+   * set, with a warning in development: never a "not found".
    */
   setVersion(version: string | null): void {
-    store.version = typeof version === 'string' && version.trim() ? version.trim() : null;
-    devWarn('setVersion is kept but does nothing yet: help centers have no versions.', 'version');
+    store.version = cleanVersion(version);
+  },
+
+  /**
+   * Your app's language, as a tag (`de`, `pt-BR`, `zh-Hant`), to open the help center in that
+   * language when it is written in it; null or `''` clears it. It wins over `config.language`. A
+   * version, when one is set, comes first. A language the help center isn't written in opens its main
+   * language, as before.
+   */
+  setLanguage(locale: string | null): void {
+    const tag = cleanLanguage(locale);
+    const blank = locale === null || locale === undefined || (typeof locale === 'string' && !locale.trim());
+    if (!tag && !blank) {
+      devWarn('setLanguage takes a language tag, like "de", "pt-BR" or "zh-Hant". It was cleared.');
+    }
+    store.language = tag;
   },
 
   /**

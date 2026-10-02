@@ -1,5 +1,6 @@
 import { Linking, Platform } from 'react-native';
 import { injectionScript, readPageMessage, type AppMessage } from './bridge';
+import { chooseEdition, cleanLanguage, cleanVersion } from './editions';
 import { decideLoaded, decideNavigation, decideNewWindow, type NavigationRequest } from './links';
 import { debugLog, devWarn, isDev } from './log';
 import { resolveSite, type Resolution, type Site } from './resolve';
@@ -26,6 +27,11 @@ import { isMobileUrl, parseOrigin, viewPath } from './url';
  * after which the WebView loads the page anyway. So every page the WebView reports, on either
  * platform, is checked again: anything other than the help center's app pages is stopped, and the
  * last good app page is loaded again — once; if that goes wrong too, the error state.
+ *
+ * **Which edition.** Each view opens in the edition the app's version or language chooses from those
+ * the resolver listed (editions.ts), at `/_mobile/<path>/…`; with neither, or on a site with one
+ * language, at `/_mobile/…` as before. A reader who picks another language on the front page stays
+ * in it until the next `open*`, which follows the app's settings again.
  *
  * **Errors.** No network, a main-frame load error at any time, 15 seconds without the page
  * finishing, a 5xx whose page never says `ready`, or a second renderer crash within 30 seconds:
@@ -246,7 +252,27 @@ export function createSheet(view: SheetView, initial: SheetInputs) {
     // Try again comes back to the page the reader had reached, when it is still on this site.
     const again = retryFrom !== null && isMobileUrl(retryFrom, site.origin) ? retryFrom : null;
     retryFrom = null;
-    show(again ?? `${site.origin}${viewPath(inputs.request)}`);
+    show(again ?? addressOf(site, inputs.request));
+  }
+
+  /**
+   * Where an opening goes: its view, in the edition the app's settings choose. The opening's own
+   * version, then setVersion's, then config's; then setLanguage's language, then config's.
+   */
+  function addressOf(on: Site, request: OpenRequest): string {
+    const version = cleanVersion(request.options.version) ?? store.version ?? cleanVersion(inputs.config?.version);
+    const language = store.language ?? cleanLanguage(inputs.config?.language);
+    const choice = chooseEdition(on.editions, { version, language });
+    if (choice.unknownVersion) {
+      const versions = on.editions.filter((edition) => edition.kind === 'version').map((edition) => edition.path);
+      const asked = choice.unknownVersion.slice(0, 40);
+      devWarn(
+        `This help center offers no version "${asked}" (${versions.length > 0 ? `its versions: ${versions.join(', ')}` : 'it has no versions'}), so it opens as if none were set. A version is offered once it is launched on the dashboard's Languages & versions page.`,
+        `version:${asked}`,
+      );
+    }
+    debug(choice.path ? `opening the "${choice.path}" edition` : 'opening the main edition');
+    return `${on.origin}${viewPath(request, choice.path)}`;
   }
 
   /** Whether a message can go to the page now: it said `ready`, and the WebView is on an app page. */
@@ -330,7 +356,7 @@ export function createSheet(view: SheetView, initial: SheetInputs) {
     navigate(request: OpenRequest) {
       if (request === requestSeen) return;
       requestSeen = request;
-      if (phase === 'page' && site) show(`${site.origin}${viewPath(request)}`);
+      if (phase === 'page' && site) show(addressOf(site, request));
       else if (phase !== 'resolving') void resolve();
       // While resolving, the answer opens inputs.request, which is this one.
     },

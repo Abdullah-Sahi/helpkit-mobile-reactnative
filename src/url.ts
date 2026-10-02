@@ -1,3 +1,4 @@
+import { EDITION_PATH } from './editions';
 import type { HelpKitView } from './types';
 
 /**
@@ -114,20 +115,23 @@ export interface ViewRequest {
 
 /**
  * A view's path under the site's origin: the only thing an address ever carries. No contact field,
- * no metadata, no identity, and no version (versions don't exist yet).
+ * no metadata, no identity. In an edition other than the main one, its path comes first
+ * (`/_mobile/de/articles/x`), as the site serves it; `edition` is a path the resolver listed
+ * (editions.ts), and anything that isn't one segment is left out rather than put in the address.
  */
-export function viewPath(request: ViewRequest): string {
+export function viewPath(request: ViewRequest, edition = ''): string {
+  const base = edition && EDITION_PATH.test(edition) ? `${MOBILE_BASE}/${edition}` : MOBILE_BASE;
   switch (request.view) {
     case 'article':
-      return request.slug ? `${MOBILE_BASE}/articles/${request.slug}` : MOBILE_BASE;
+      return request.slug ? `${base}/articles/${request.slug}` : base;
     case 'category':
-      return request.slug ? `${MOBILE_BASE}/collections/${request.slug}` : MOBILE_BASE;
+      return request.slug ? `${base}/collections/${request.slug}` : base;
     case 'search':
-      return request.q ? `${MOBILE_BASE}?q=${encodeURIComponent(request.q)}` : MOBILE_BASE;
+      return request.q ? `${base}?q=${encodeURIComponent(request.q)}` : base;
     case 'contact':
-      return `${MOBILE_BASE}/contact`;
+      return `${base}/contact`;
     default:
-      return MOBILE_BASE;
+      return base;
   }
 }
 

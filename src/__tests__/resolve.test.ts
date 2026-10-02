@@ -80,8 +80,43 @@ describe('the answers', () => {
         style: 'branded',
         header: YES.header,
         background: YES.background,
+        editions: [],
       },
     });
+  });
+
+  test('editions: what the app may open the site in, checked one by one', () => {
+    const editions = [
+      { path: '', kind: 'main', language: 'en', label: 'English' },
+      { path: 'de', kind: 'language', language: 'de', label: 'Deutsch' },
+      { path: 'zh-hant', kind: 'language', language: 'zh-Hant', label: '繁體中文' },
+      { path: 'v2', kind: 'version', language: 'en', label: '  ' },
+    ];
+    expect(readAnswer(200, { ...YES, editions }, false)).toMatchObject({
+      site: {
+        editions: [
+          { path: '', kind: 'main', language: 'en', label: 'English' },
+          { path: 'de', kind: 'language', language: 'de', label: 'Deutsch' },
+          { path: 'zh-hant', kind: 'language', language: 'zh-Hant', label: '繁體中文' },
+          { path: 'v2', kind: 'version', language: 'en', label: 'v2' },
+        ],
+      },
+    });
+    // Nothing that couldn't be one segment of an address, and no kind this version doesn't know.
+    const bad = [
+      null,
+      'de',
+      { path: '../admin', kind: 'language', language: 'de', label: 'x' },
+      { path: 'de/x', kind: 'language', language: 'de', label: 'x' },
+      { path: 'DE', kind: 'language', language: 'de', label: 'x' },
+      { path: 'de', kind: 'dialect', language: 'de', label: 'x' },
+      { path: 'de', kind: 'language', language: '<b>', label: 'x' },
+      { path: 'de', kind: 'language', label: 'x' },
+      { path: 'x', kind: 'main', language: 'en', label: 'x' },
+      { path: '', kind: 'version', language: 'en', label: 'x' },
+    ];
+    expect(readAnswer(200, { ...YES, editions: bad }, false)).toMatchObject({ site: { editions: [] } });
+    expect(readAnswer(200, { ...YES, editions: 'de' }, false)).toMatchObject({ site: { editions: [] } });
   });
 
   test('unknown and off are "not available"', () => {
@@ -155,6 +190,7 @@ describe('the answers', () => {
         style: 'branded',
         header: { light: NEUTRAL.light, dark: { bg: '#0C5D57', fg: '#FFFFFF' } },
         background: { light: NEUTRAL.light.bg, dark: NEUTRAL.dark.bg },
+        editions: [],
       },
     });
     expect(readAnswer(200, { ...YES, name: '', header: undefined, background: null }, false)).toMatchObject({
